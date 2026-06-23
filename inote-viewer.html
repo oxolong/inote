@@ -681,11 +681,21 @@ function renderGraph() {
     });
 }
 
+// ── Resolve file handle from path (handles subdirectories) ──
+async function resolveFileHandle(relativePath) {
+    const parts = relativePath.split('/');
+    let handle = dirHandle;
+    for (let i = 0; i < parts.length - 1; i++) {
+        handle = await handle.getDirectoryHandle(parts[i]);
+    }
+    return await handle.getFileHandle(parts[parts.length - 1]);
+}
+
 // ── Open node file ──
 async function openNodeFile(node) {
     if (!dirHandle) return;
     try {
-        const fileHandle = await dirHandle.getFileHandle(node.file);
+        const fileHandle = await resolveFileHandle(node.file);
         const file = await fileHandle.getFile();
         const content = await file.text();
 
@@ -710,13 +720,7 @@ async function openNodeFile(node) {
 async function openActionFile(action) {
     if (!dirHandle) return;
     try {
-        const pathParts = action.file.split('/');
-        let currentHandle = dirHandle;
-        for (let i = 0; i < pathParts.length - 1; i++) {
-            currentHandle = await currentHandle.getDirectoryHandle(pathParts[i]);
-        }
-        const fileName = pathParts[pathParts.length - 1];
-        const fileHandle = await currentHandle.getFileHandle(fileName);
+        const fileHandle = await resolveFileHandle(action.file);
         const file = await fileHandle.getFile();
         const content = await file.text();
 
@@ -733,7 +737,7 @@ async function openActionFile(action) {
             (toNode ? toNode.name : action.to) + ')';
 
         editorEl.value = content;
-        previewEl.innerHTML = marked.parse(content);
+        previewEl.innerHTML = renderMD(content);
         editorEmpty.style.display = 'none';
         switchMode('preview');
         saveBtn.disabled = true;
