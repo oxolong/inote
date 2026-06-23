@@ -1,0 +1,39 @@
+{
+  "version": "1.0",
+  "type": "knowledge",
+  "name": "深度学习知识体系",
+  "description": "深度学习核心概念知识体系，涵盖基础理论、经典模型和训练方法",
+  "nodes": [
+    { "id": "n1",  "name": "深度学习",   "file": "深度学习.md" },
+    { "id": "n2",  "name": "监督学习",   "file": "监督学习.md" },
+    { "id": "n3",  "name": "线性回归",   "file": "线性回归.md" },
+    { "id": "n4",  "name": "逻辑回归",   "file": "逻辑回归.md" },
+    { "id": "n5",  "name": "无监督学习",  "file": "无监督学习.md" },
+    { "id": "n6",  "name": "K-Means",   "file": "K-Means.md" },
+    { "id": "n7",  "name": "PCA",       "file": "PCA.md" },
+    { "id": "n8",  "name": "强化学习",   "file": "强化学习.md" },
+    { "id": "n9",  "name": "CNN",       "file": "CNN.md" },
+    { "id": "n10", "name": "卷积层",     "file": "卷积层.md" },
+    { "id": "n11", "name": "池化层",     "file": "池化层.md" },
+    { "id": "n12", "name": "全连接层",   "file": "全连接层.md" },
+    { "id": "n13", "name": "RNN",       "file": "RNN.md" },
+    { "id": "n14", "name": "LSTM",      "file": "LSTM.md" },
+    { "id": "n15", "name": "GRU",       "file": "GRU.md" }
+  ],
+  "contains": [
+    { "parent": "n1",  "child": "n2" },
+    { "parent": "n1",  "child": "n5" },
+    { "parent": "n1",  "child": "n8" },
+    { "parent": "n1",  "child": "n9" },
+    { "parent": "n1",  "child": "n13" },
+    { "parent": "n2",  "child": "n3" },
+    { "parent": "n2",  "child": "n4" },
+    { "parent": "n5",  "child": "n6" },
+    { "parent": "n5",  "child": "n7" },
+    { "parent": "n9",  "child": "n10" },
+    { "parent": "n9",  "child": "n11" },
+    { "parent": "n9",  "child": "n12" },
+    { "parent": "n13", "child": "n14" },
+    { "parent": "n13", "child": "n15" }
+  ]
+}

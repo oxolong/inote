@@ -1,0 +1,72 @@
+{
+  "version": "1.0",
+  "type": "scenario",
+  "name": "金融Agent开发场景",
+  "description": "金融领域AI Agent从需求分析到持续迭代的完整开发流程",
+  "nodes": [
+    { "id": "n1", "name": "需求分析", "file": "需求分析.md" },
+    { "id": "n2", "name": "架构设计", "file": "架构设计.md" },
+    { "id": "n3", "name": "代码实现", "file": "代码实现.md" },
+    { "id": "n4", "name": "测试验证", "file": "测试验证.md" },
+    { "id": "n5", "name": "生产部署", "file": "生产部署.md" },
+    { "id": "n6", "name": "监控反馈", "file": "监控反馈.md" }
+  ],
+  "actions": [
+    {
+      "id": "a1",
+      "from": "n1",
+      "to": "n2",
+      "name": "方案设计",
+      "file": "actions/from(需求分析)to(架构设计)act(方案设计).md"
+    },
+    {
+      "id": "a2",
+      "from": "n2",
+      "to": "n3",
+      "name": "编码实现",
+      "file": "actions/from(架构设计)to(代码实现)act(编码实现).md"
+    },
+    {
+      "id": "a3",
+      "from": "n3",
+      "to": "n4",
+      "name": "单元测试",
+      "file": "actions/from(代码实现)to(测试验证)act(单元测试).md"
+    },
+    {
+      "id": "a4",
+      "from": "n3",
+      "to": "n4",
+      "name": "集成测试",
+      "file": "actions/from(代码实现)to(测试验证)act(集成测试).md"
+    },
+    {
+      "id": "a5",
+      "from": "n4",
+      "to": "n5",
+      "name": "上线发布",
+      "file": "actions/from(测试验证)to(生产部署)act(上线发布).md"
+    },
+    {
+      "id": "a6",
+      "from": "n5",
+      "to": "n6",
+      "name": "日志采集",
+      "file": "actions/from(生产部署)to(监控反馈)act(日志采集).md"
+    },
+    {
+      "id": "a7",
+      "from": "n6",
+      "to": "n1",
+      "name": "需求迭代",
+      "file": "actions/from(监控反馈)to(需求分析)act(需求迭代).md"
+    },
+    {
+      "id": "a8",
+      "from": "n4",
+      "to": "n3",
+      "name": "缺陷修复",
+      "file": "actions/from(测试验证)to(代码实现)act(缺陷修复).md"
+    }
+  ]
+}

@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iNote Viewer</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://unpkg.com/vis-network@9.1.6/standalone/umd/vis-network.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<style>
+:root {
+    --bg:        #f0f4ff;
+    --surface:   #ffffff;
+    --border:    #e2e8f0;
+    --text:      #1e293b;
+    --text-muted:#64748b;
+
+    /* vibrant accents */
+    --indigo:    #6366f1;
+    --indigo-lt: #a5b4fc;
+    --cyan:      #06b6d4;
+    --emerald:   #10b981;
+    --violet:    #8b5cf6;
+    --rose:      #f43f5e;
+    --amber:     #f59e0b;
+
+    /* node colours */
+    --kn-bg:     #ede9fe;
+    --kn-border: #8b5cf6;
+    --sc-bg:     #d1fae5;
+    --sc-border: #10b981;
+
+    /* shadows */
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.04);
+    --shadow:    0 4px 12px rgba(0,0,0,.06);
+    --shadow-lg: 0 12px 28px rgba(0,0,0,.08);
+
+    --radius: 10px;
+    --radius-sm: 6px;
+    --toolbar-h: 46px;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ════════════════ Header ════════════════ */
+header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    z-index: 10;
+    flex-shrink: 0;
+}
+header h1 {
+    font-size: 21px;
+    font-weight: 800;
+    letter-spacing: -0.4px;
+    white-space: nowrap;
+    background: linear-gradient(135deg, var(--indigo), var(--violet));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+#openBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(135deg, var(--indigo), var(--violet));
+    border: none;
+    border-radius: 24px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 2px 8px rgba(99,102,241,.35);
+}
+#openBtn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(99,102,241,.45); }
+#sysInfo {
+    font-size: 13px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+#sysInfo .type-tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-right: 8px;
+    letter-spacing: 0.3px;
+}
+.type-tag.knowledge { background: #ede9fe; color: #7c3aed; }
+.type-tag.scenario  { background: #d1fae5; color: #059669; }
+
+/* ════════════════ Main layout ════════════════ */
+main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* ════════════════ Graph panel ════════════════ */
+#graphPanel {
+    flex: 1;
+    position: relative;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    min-width: 320px;
+}
+#graphContainer { width:100%; height:100%; }
+#graphEmpty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+#graphEmpty .icon { font-size: 60px; margin-bottom: 14px; opacity: 0.45; }
+#graphEmpty .hint { font-size: 15px; font-weight: 500; }
+
+/* ════════════════ Divider ════════════════ */
+#divider {
+    width: 5px;
+    cursor: col-resize;
+    background: var(--border);
+    flex-shrink: 0;
+    z-index: 15;
+    transition: background 0.15s;
+    position: relative;
+}
+#divider::after {
+    content: '';
+    position: absolute;
+    left: -3px;
+    right: -3px;
+    top: 0;
+    bottom: 0;
+}
+#divider:hover,
+#divider.active {
+    background: var(--indigo);
+}
+
+/* ════════════════ Editor panel ════════════════ */
+#editorPanel {
+    width: 440px;
+    display: flex;
+    flex-direction: column;
+    background: #f8fafc;
+    flex-shrink: 0;
+    box-shadow: var(--shadow-lg);
+    z-index: 5;
+}
+#editorToolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    height: var(--toolbar-h);
+    flex-shrink: 0;
+}
+#currentFileName {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text);
+}
+#editorToolbar button {
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--surface);
+    cursor: pointer;
+    transition: all 0.18s;
+}
+#editorToolbar button:hover { background: #eef2ff; border-color: var(--indigo-lt); }
+#editorToolbar button.active {
+    background: var(--indigo);
+    color: #fff;
+    border-color: var(--indigo);
+    box-shadow: 0 2px 6px rgba(99,102,241,.3);
+}
+#saveBtn {
+    background: linear-gradient(135deg, var(--emerald), #059669) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+    box-shadow: 0 2px 6px rgba(16,185,129,.3);
+}
+#saveBtn:hover { opacity: 0.9; transform: translateY(-1px); }
+#saveBtn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+/* ── Content ── */
+#editorContent {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+#editor {
+    flex: 1;
+    width: 100%;
+    padding: 16px;
+    font-family: "SF Mono", "Fira Code", "Consolas", "PingFang SC", monospace;
+    font-size: 13.5px;
+    line-height: 1.7;
+    border: none;
+    resize: none;
+    outline: none;
+    background: #fff;
+    color: var(--text);
+    display: none;
+}
+#editor.show { display: block; }
+
+#preview {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    background: #fff;
+    display: none;
+}
+#preview.show { display: block; }
+
+/* rendered markdown */
+#preview h1 { font-size:1.45em; margin-bottom:12px; padding-bottom:8px; border-bottom:2px solid #eef2ff; color:var(--text); }
+#preview h2 { font-size:1.18em; margin:20px 0 8px; color:var(--text); }
+#preview h3 { font-size:1.05em; margin:16px 0 6px; color:var(--text); }
+#preview p  { margin:8px 0; line-height:1.75; }
+#preview ul, #preview ol { padding-left:22px; margin:8px 0; }
+#preview li { margin:4px 0; line-height:1.65; }
+#preview code { background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:.88em; color:var(--violet); }
+#preview pre { background:#1e293b; color:#e2e8f0; padding:14px 18px; border-radius:var(--radius-sm); overflow-x:auto; margin:12px 0; }
+#preview pre code { background:none; padding:0; color:inherit; font-size:.85em; }
+#preview blockquote { border-left:3px solid var(--indigo); padding-left:14px; color:var(--text-muted); margin:12px 0; }
+#preview table { border-collapse:collapse; width:100%; margin:12px 0; }
+#preview th, #preview td { border:1px solid var(--border); padding:8px 12px; text-align:left; font-size:.92em; }
+#preview th { background:#f8fafc; font-weight:600; }
+#preview strong { color:var(--text); }
+
+#editorEmpty {
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    color:var(--text-muted);
+}
+#editorEmpty .icon { font-size:44px; margin-bottom:10px; opacity:.35; }
+#editorEmpty .hint { font-size:13.5px; }
+
+/* ════════════════ Toast ════════════════ */
+#toast {
+    position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+    padding:10px 26px; border-radius:24px; font-size:13px; font-weight:600;
+    color:#fff; z-index:999; opacity:0; transition:opacity .25s;
+    pointer-events:none; letter-spacing:.2px;
+}
+#toast.show   { opacity:1; }
+#toast.success { background:linear-gradient(135deg,#10b981,#059669); box-shadow:0 4px 14px rgba(16,185,129,.35); }
+#toast.error  { background:linear-gradient(135deg,#f43f5e,#e11d48); box-shadow:0 4px 14px rgba(244,63,94,.35); }
+#toast.info   { background:linear-gradient(135deg,#6366f1,#4f46e5); box-shadow:0 4px 14px rgba(99,102,241,.35); }
+
+/* ════════════════ Responsive ════════════════ */
+@media (max-width:720px) {
+    main { flex-direction:column; }
+    #graphPanel { height:55%; min-height:260px; border-right:none; border-bottom:1px solid var(--border); }
+    #editorPanel { width:100%; height:45%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+    <h1>iNote Viewer</h1>
+    <button id="openBtn">📂 打开体系</button>
+    <span id="sysInfo"></span>
+</header>
+
+<main>
+    <div id="graphPanel">
+        <div id="graphContainer"></div>
+        <div id="graphEmpty">
+            <div class="icon">🗂️</div>
+            <div class="hint">点击「📂 打开体系」选择文件夹</div>
+        </div>
+    </div>
+    <div id="divider"></div>
+    <div id="editorPanel">
+        <div id="editorToolbar">
+            <span id="currentFileName">未选择</span>
+            <button id="editBtn">编辑</button>
+            <button id="previewBtn" class="active">预览</button>
+            <button id="saveBtn" disabled>💾 保存</button>
+        </div>
+        <div id="editorContent">
+            <textarea id="editor" placeholder="点击左侧节点或连线查看笔记..."></textarea>
+            <div id="preview" class="show"></div>
+            <div id="editorEmpty">
+                <div class="icon">📝</div>
+                <div class="hint">点击左侧节点或连线</div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+/* ════════════════════════════════════════════
+   iNote Viewer — Main Application
+   ════════════════════════════════════════════ */
+
+// ── DOM refs ──
+const $ = (sel) => document.querySelector(sel);
+const openBtn      = $('#openBtn');
+const sysInfo      = $('#sysInfo');
+const graphContainer = $('#graphContainer');
+const graphEmpty   = $('#graphEmpty');
+const fileNameEl   = $('#currentFileName');
+const editBtn      = $('#editBtn');
+const previewBtn   = $('#previewBtn');
+const saveBtn      = $('#saveBtn');
+const editorEl     = $('#editor');
+const previewEl    = $('#preview');
+const editorEmpty  = $('#editorEmpty');
+const toastEl      = $('#toast');
+
+// ── State ──
+let dirHandle   = null;
+let inoteData   = null;
+let network     = null;
+let currentNode = null;
+let currentAction = null;
+let currentFileHandle = null;
+let isDirty     = false;
+
+// ── Toast ──
+let toastTimer;
+function toast(msg, type='') {
+    clearTimeout(toastTimer);
+    toastEl.textContent = msg;
+    toastEl.className = 'show ' + type;
+    toastTimer = setTimeout(() => toastEl.className = '', 2200);
+}
+
+// ── Markdown render with KaTeX math ──
+function renderMD(text) {
+    // Protect LaTeX from markdown parser (especially _ inside math)
+    const placeholders = [];
+    // Block math $$...$$
+    text = text.replace(/\$\$([\s\S]*?)\$\$/g, function(_, m) {
+        placeholders.push({ t: 'b', m: m });
+        return '\x00M' + (placeholders.length - 1) + '\x00';
+    });
+    // Inline math $...$
+    text = text.replace(/\$([^\$\n]+?)\$/g, function(_, m) {
+        placeholders.push({ t: 'i', m: m });
+        return '\x00M' + (placeholders.length - 1) + '\x00';
+    });
+
+    // Parse standard markdown
+    let html = marked.parse(text);
+
+    // Restore LaTeX
+    html = html.replace(/\x00M(\d+)\x00/g, function(_, idx) {
+        const p = placeholders[parseInt(idx)];
+        if (!p) return '';
+        return p.t === 'b' ? '$$' + p.m + '$$' : '$' + p.m + '$';
+    });
+
+    // Render KaTeX
+    var tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    renderMathInElement(tmp, {
+        delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '$',  right: '$',  display: false }
+        ],
+        throwOnError: false
+    });
+    return tmp.innerHTML;
+}
+
+// ── Browser check ──
+function checkAPI() {
+    if (typeof window.showDirectoryPicker !== 'function') {
+        toast('⚠️ 当前浏览器不支持 File System Access API，请使用 Chrome 86+ 或 Edge 86+', 'error');
+        openBtn.disabled = true;
+        openBtn.textContent = '🚫 浏览器不支持';
+        return false;
+    }
+    return true;
+}
+
+// ── Open folder ──
+openBtn.addEventListener('click', async () => {
+    if (!checkAPI()) return;
+    try {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await loadSystem(dirHandle);
+    } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.error(err);
+        toast('打开文件夹失败: ' + err.message, 'error');
+    }
+});
+
+// ── Load system ──
+async function loadSystem(handle) {
+    let jsonHandle;
+    try {
+        jsonHandle = await handle.getFileHandle('_inote.json');
+    } catch {
+        toast('所选文件夹中未找到 _inote.json，请选择 iNote 体系文件夹', 'error');
+        return;
+    }
+
+    const jsonFile = await jsonHandle.getFile();
+    const raw = await jsonFile.text();
+    let data;
+    try { data = JSON.parse(raw); } catch {
+        toast('_inote.json 格式错误，无法解析', 'error');
+        return;
+    }
+
+    if (!data.version || !data.type || !data.nodes) {
+        toast('_inote.json 缺少必要字段 (version, type, nodes)', 'error');
+        return;
+    }
+    if (data.type !== 'knowledge' && data.type !== 'scenario') {
+        toast('_inote.json 的 type 必须为 "knowledge" 或 "scenario"', 'error');
+        return;
+    }
+
+    inoteData = data;
+    dirHandle = handle;
+    resetEditor();
+    try {
+        renderGraph();
+    } catch (err) {
+        console.error('图形渲染失败:', err);
+        toast('⚠️ 图形渲染失败: ' + err.message, 'error');
+        return;
+    }
+    updateHeader();
+    toast('✅ 已加载「' + data.name + '」', 'success');
+}
+
+// ── Update header ──
+function updateHeader() {
+    if (!inoteData) { sysInfo.innerHTML = ''; return; }
+    const tagClass = inoteData.type === 'knowledge' ? 'knowledge' : 'scenario';
+    const tagLabel = inoteData.type === 'knowledge' ? '知识体系' : '场景体系';
+    sysInfo.innerHTML = `<span class="type-tag ${tagClass}">${tagLabel}</span>${inoteData.name} · ${inoteData.nodes.length} 个节点`;
+}
+
+// ── Render graph ──
+function renderGraph() {
+    if (typeof vis === 'undefined') {
+        throw new Error('vis-network 库未加载，请检查网络连接');
+    }
+
+    graphEmpty.style.display = 'none';
+
+    const isKnowledge = inoteData.type === 'knowledge';
+
+    // Build node array (with initial positions computed first)
+    const nodesArr = inoteData.nodes.map(n => ({
+        id: n.id,
+        label: n.name,
+        shape: 'box',
+        color: {
+            background: isKnowledge ? '#ede9fe' : '#d1fae5',
+            border: isKnowledge ? '#8b5cf6' : '#10b981',
+            highlight: {
+                background: isKnowledge ? '#ddd6fe' : '#a7f3d0',
+                border: isKnowledge ? '#7c3aed' : '#059669'
+            }
+        },
+        font: { size: 14, face: 'PingFang SC, Microsoft YaHei, sans-serif', color: '#1e293b' },
+        borderWidth: 2,
+        margin: { top: 12, bottom: 12, left: 18, right: 18 },
+        chosen: { node: function(values) { values.borderWidth = 3; return values; } }
+    }));
+
+    // ═══ Compute smart initial positions (no fixed, physics will fine-tune) ═══
+
+    if (isKnowledge) {
+        // ── Knowledge: BFS tree initial positions ──
+        const children = {};
+        const hasParent = {};
+        nodesArr.forEach(n => { children[n.id] = []; hasParent[n.id] = false; });
+        if (inoteData.contains) {
+            inoteData.contains.forEach(c => {
+                children[c.parent].push(c.child);
+                hasParent[c.child] = true;
+            });
+        }
+        const roots = Object.keys(hasParent).filter(id => !hasParent[id]);
+        if (roots.length === 0 && nodesArr.length > 0) roots.push(nodesArr[0].id);
+
+        const levelMap = {};
+        const queue = roots.map(id => ({ id: id, lvl: 0 }));
+        let maxLvl = 0;
+        while (queue.length) {
+            const cur = queue.shift();
+            if (levelMap[cur.id] !== undefined) continue;
+            levelMap[cur.id] = cur.lvl;
+            if (cur.lvl > maxLvl) maxLvl = cur.lvl;
+            (children[cur.id] || []).forEach(cid => {
+                if (levelMap[cid] === undefined) queue.push({ id: cid, lvl: cur.lvl + 1 });
+            });
+        }
+        nodesArr.forEach(n => { if (levelMap[n.id] === undefined) levelMap[n.id] = maxLvl + 1; });
+
+        const lvlGroups = {};
+        for (let l = 0; l <= maxLvl + 1; l++) lvlGroups[l] = [];
+        nodesArr.forEach(n => lvlGroups[levelMap[n.id]].push(n));
+
+        const H = 210, V = 260;
+        Object.keys(lvlGroups).forEach(l => {
+            const g = lvlGroups[l];
+            if (!g.length) return;
+            const tw = (g.length - 1) * H;
+            g.forEach((n, i) => { n.x = -tw / 2 + i * H; n.y = parseInt(l) * V; });
+        });
+    } else if (inoteData.actions) {
+        // ── Scenario: trace action chain for initial positions ──
+        const outEdges = {}, indeg = {};
+        nodesArr.forEach(n => { outEdges[n.id] = []; indeg[n.id] = 0; });
+        inoteData.actions.forEach(a => { outEdges[a.from].push(a); indeg[a.to]++; });
+
+        const starts = Object.keys(indeg).filter(id => indeg[id] === 0);
+        const ordered = [];
+        const visited = new Set();
+        const startId = starts.length > 0 ? starts[0] : nodesArr[0].id;
+        let cur = startId;
+        while (cur && !visited.has(cur)) {
+            ordered.push(cur);
+            visited.add(cur);
+            const next = outEdges[cur][0];
+            cur = next ? next.to : null;
+        }
+        Object.keys(outEdges).forEach(id => { if (!visited.has(id)) ordered.push(id); });
+
+        const N = ordered.length;
+        const isPureCycle = starts.length === 0;
+        if (isPureCycle) {
+            // Circular initial layout
+            const r = Math.max(220, N * 58);
+            ordered.forEach((id, i) => {
+                const angle = (2 * Math.PI * i) / N - Math.PI / 2;
+                const node = nodesArr.find(n => n.id === id);
+                if (node) { node.x = r * Math.cos(angle); node.y = r * Math.sin(angle); }
+            });
+        } else {
+            // Linear initial layout (left → right)
+            const H = 320;
+            const tw = (N - 1) * H;
+            ordered.forEach((id, i) => {
+                const node = nodesArr.find(n => n.id === id);
+                if (node) { node.x = -tw / 2 + i * H; node.y = 0; }
+            });
+        }
+    }
+
+    // Build edges
+    const edgesArr = [];
+    if (isKnowledge && inoteData.contains) {
+        inoteData.contains.forEach((rel, i) => {
+            edgesArr.push({
+                id: 'e' + i,
+                from: rel.parent,
+                to: rel.child,
+                arrows: { to: { enabled: false } },
+                color: { color: '#a78bfa', highlight: '#7c3aed' },
+                width: 2,
+                smooth: { type: 'continuous', roundness: 0.45 }
+            });
+        });
+    } else if (!isKnowledge && inoteData.actions) {
+        inoteData.actions.forEach(act => {
+            edgesArr.push({
+                id: act.id,
+                from: act.from,
+                to: act.to,
+                label: act.name,
+                arrows: { to: { enabled: true, scaleFactor: 0.9 } },
+                color: { color: '#34d399', highlight: '#059669' },
+                width: 2,
+                smooth: { type: 'curvedCW', roundness: 0.25 },
+                font: { size: 11, color: '#059669', strokeWidth: 3, strokeColor: '#fff', face: 'PingFang SC, Microsoft YaHei, sans-serif' }
+            });
+        });
+    }
+
+    const nodes = new vis.DataSet(nodesArr);
+    const edges = new vis.DataSet(edgesArr);
+
+    const data = { nodes: nodes, edges: edges };
+    const options = {
+        physics: {
+            solver: 'forceAtlas2Based',
+            forceAtlas2Based: {
+                gravitationalConstant: -45,
+                centralGravity: 0.006,
+                springLength: 190,
+                springConstant: 0.07,
+                damping: 0.45
+            },
+            stabilization: { iterations: 160 }
+        },
+        interaction: {
+            hover: true,
+            tooltipDelay: 200,
+            zoomView: true,
+            dragView: true,
+            navigationButtons: true
+        },
+        layout: { improvedLayout: true }
+    };
+
+    if (network) { network.destroy(); }
+    network = new vis.Network(graphContainer, data, options);
+
+    // ── Click handler ──
+    network.on('selectNode', async function(params) {
+        const nodeId = params.nodes[0];
+        if (!nodeId) return;
+        const node = inoteData.nodes.find(function(n) { return n.id === nodeId; });
+        if (!node) return;
+        await openNodeFile(node);
+    });
+
+    network.on('selectEdge', async function(params) {
+        const edgeId = params.edges[0];
+        if (!edgeId) return;
+
+        if (inoteData.type === 'scenario') {
+            const action = inoteData.actions.find(function(a) { return a.id === edgeId; });
+            if (action) { await openActionFile(action); }
+        } else {
+            const idx = parseInt(edgeId.substring(1));
+            if (!isNaN(idx) && inoteData.contains && inoteData.contains[idx]) {
+                const rel = inoteData.contains[idx];
+                const parentNode = inoteData.nodes.find(function(n) { return n.id === rel.parent; });
+                const childNode = inoteData.nodes.find(function(n) { return n.id === rel.child; });
+                if (parentNode && childNode) { showRelationshipInfo(parentNode, childNode); }
+            }
+        }
+    });
+}
+
+// ── Open node file ──
+async function openNodeFile(node) {
+    if (!dirHandle) return;
+    try {
+        const fileHandle = await dirHandle.getFileHandle(node.file);
+        const file = await fileHandle.getFile();
+        const content = await file.text();
+
+        currentFileHandle = fileHandle;
+        currentNode = node;
+        currentAction = null;
+        isDirty = false;
+
+        fileNameEl.textContent = '📄 ' + node.name;
+        editorEl.value = content;
+        previewEl.innerHTML = renderMD(content);
+        editorEmpty.style.display = 'none';
+        switchMode('preview');
+        saveBtn.disabled = true;
+    } catch (err) {
+        toast('⚠️ 无法读取文件: ' + node.file, 'error');
+        console.error(err);
+    }
+}
+
+// ── Open action file ──
+async function openActionFile(action) {
+    if (!dirHandle) return;
+    try {
+        const pathParts = action.file.split('/');
+        let currentHandle = dirHandle;
+        for (let i = 0; i < pathParts.length - 1; i++) {
+            currentHandle = await currentHandle.getDirectoryHandle(pathParts[i]);
+        }
+        const fileName = pathParts[pathParts.length - 1];
+        const fileHandle = await currentHandle.getFileHandle(fileName);
+        const file = await fileHandle.getFile();
+        const content = await file.text();
+
+        currentFileHandle = fileHandle;
+        currentAction = action;
+        currentNode = null;
+        isDirty = false;
+
+        // Resolve node names for display
+        const fromNode = inoteData.nodes.find(n => n.id === action.from);
+        const toNode = inoteData.nodes.find(n => n.id === action.to);
+        fileNameEl.textContent = '⚡ ' + action.name + '  (' +
+            (fromNode ? fromNode.name : action.from) + ' → ' +
+            (toNode ? toNode.name : action.to) + ')';
+
+        editorEl.value = content;
+        previewEl.innerHTML = marked.parse(content);
+        editorEmpty.style.display = 'none';
+        switchMode('preview');
+        saveBtn.disabled = true;
+    } catch (err) {
+        toast('⚠️ 无法读取动作文件: ' + action.file, 'error');
+        console.error(err);
+    }
+}
+
+// ── Show relationship info (knowledge edge click) ──
+function showRelationshipInfo(parentNode, childNode) {
+    const html = `
+        <h2 style="margin-top:0">📎 ${parentNode.name}</h2>
+        <p style="font-size:1.1em;color:var(--violet)">└─ 包含 → <strong>${childNode.name}</strong></p>
+        <p style="color:var(--text-muted);margin-top:18px;font-size:.92em">💡 点击节点查看详细笔记</p>
+    `;
+    previewEl.innerHTML = html;
+    editorEl.value = '';
+    fileNameEl.textContent = '🔗 ' + parentNode.name + ' → ' + childNode.name;
+    editorEmpty.style.display = 'none';
+    currentNode = null;
+    currentAction = null;
+    currentFileHandle = null;
+    saveBtn.disabled = true;
+    switchMode('preview');
+}
+
+// ── Reset editor ──
+function resetEditor() {
+    editorEl.value = '';
+    previewEl.innerHTML = '';
+    fileNameEl.textContent = '未选择';
+    editorEmpty.style.display = 'flex';
+    currentNode = null;
+    currentAction = null;
+    currentFileHandle = null;
+    isDirty = false;
+    saveBtn.disabled = true;
+    switchMode('preview');
+}
+
+// ── Mode switching ──
+function switchMode(mode) {
+    if (mode === 'edit') {
+        editorEl.classList.add('show');
+        previewEl.classList.remove('show');
+        editBtn.classList.add('active');
+        previewBtn.classList.remove('active');
+        editorEmpty.style.display = 'none';
+    } else {
+        if (editorEl.value) {
+            previewEl.innerHTML = renderMD(editorEl.value);
+        }
+        editorEl.classList.remove('show');
+        previewEl.classList.add('show');
+        editBtn.classList.remove('active');
+        previewBtn.classList.add('active');
+    }
+}
+
+editBtn.addEventListener('click', () => switchMode('edit'));
+previewBtn.addEventListener('click', () => switchMode('preview'));
+
+// ── Track dirty state ──
+editorEl.addEventListener('input', () => {
+    if (!currentFileHandle) return;
+    isDirty = true;
+    saveBtn.disabled = false;
+});
+
+// ── Save ──
+async function doSave() {
+    if (!currentFileHandle || !isDirty) return;
+    try {
+        const writable = await currentFileHandle.createWritable();
+        await writable.write(editorEl.value);
+        await writable.close();
+        isDirty = false;
+        saveBtn.disabled = true;
+        // Update preview after save
+        previewEl.innerHTML = renderMD(editorEl.value);
+        toast('✅ 已保存', 'success');
+    } catch (err) {
+        toast('❌ 保存失败: ' + err.message, 'error');
+        console.error(err);
+    }
+}
+
+saveBtn.addEventListener('click', doSave);
+
+document.addEventListener('keydown', async (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        await doSave();
+    }
+});
+
+// ── Divider drag ──
+const divider = document.getElementById('divider');
+const graphPanel = document.getElementById('graphPanel');
+const editorPanel = document.getElementById('editorPanel');
+let isDragging = false;
+
+divider.addEventListener('mousedown', function(e) {
+    isDragging = true;
+    divider.classList.add('active');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+});
+
+document.addEventListener('mousemove', function(e) {
+    if (!isDragging) return;
+    const mainRect = document.querySelector('main').getBoundingClientRect();
+    const x = e.clientX - mainRect.left;
+    const minGraphW = 280;
+    const minEditorW = 260;
+    const dividerW = divider.offsetWidth;
+    const maxGraphW = mainRect.width - dividerW - minEditorW;
+    const clampedX = Math.max(minGraphW, Math.min(x, maxGraphW));
+    graphPanel.style.flex = 'none';
+    graphPanel.style.width = clampedX + 'px';
+    editorPanel.style.width = (mainRect.width - clampedX - dividerW) + 'px';
+    if (network) network.redraw();
+});
+
+document.addEventListener('mouseup', function() {
+    if (!isDragging) return;
+    isDragging = false;
+    divider.classList.remove('active');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+});
+
+// ── Init ──
+checkAPI();
+console.log('🚀 iNote Viewer ready');
+console.log('   点击「📂 打开体系」选择包含 _inote.json 的文件夹');
+</script>
+
+</body>
+</html>
