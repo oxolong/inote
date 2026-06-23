@@ -37,6 +37,8 @@
     └── GRU
 ```
 
+![深度学习知识体系](深度学习知识体系效果图.png)
+
 ### Scenario 示例
 
 ```
@@ -45,12 +47,14 @@
     └────────────────────────┘           └── 缺陷修复 ──┘        └── 需求迭代 ──┘
 ```
 
+![金融Agent开发流程](金融Agent开发流程效果图.png)
+
 ## 快速开始
 
 1. 克隆或下载本项目
 
    ```bash
-   git clone https://github.com/longx/inote.git
+   git clone https://github.com/oxolong/inote.git
    ```
 
 2. 用浏览器打开 `inote-viewer.html`（Chrome / Edge 86+）
